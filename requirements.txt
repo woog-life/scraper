@@ -1,3 +1,4 @@
-requests
-beautifulsoup4==4.9.0
-lxml
+requests~=2.25.1
+beautifulsoup4~=4.9.0
+lxml~=4.6.3
+urllib3~=1.26.4
