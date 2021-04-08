@@ -28,8 +28,6 @@ jobs:
       - uses: actions/checkout@v1
       - name: update tag in manifest.yml
         run: sed -i -e "s#{{TAG}}#:$(echo ${GITHUB_SHA})#g" .kubernetes/manifest.yaml
-      - name: debug
-        run: echo ${{ secrets.KUBECONFIG }} | head -c 50
       - uses: danielr1996/kubectl-action@1.0.0
         name: apply config
         with:
