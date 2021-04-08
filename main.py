@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup, Tag
 WOOG_TEMPERATURE_URL = os.getenv("WOOG_TEMPERATURE_URL") or "https://woog.iot.service.itrm.de/?accesstoken=LQ8MXn"
 # noinspection HttpUrlsUsage
 # cluster internal communication
-BACKEND_URL = os.getenv("BACKEND_URL") or "http://api.svc.cluster.local"
+BACKEND_URL = os.getenv("BACKEND_URL") or "http://backend-service:61001"
 BACKEND_PATH = os.getenv("BACKEND_PATH") or "lake/{}/temperature"
 WOOG_UUID = os.getenv("WOOG_UUID") or "69c8438b-5aef-442f-a70d-e0d783ea2b38"
 
