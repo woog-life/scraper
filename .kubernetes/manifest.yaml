@@ -12,6 +12,14 @@ spec:
           containers:
           - name: scraper
             image: ghcr.io/woog-life/scraper:{{TAG}}
+            env:
+              - name: BACKEND_URL
+                # cluster internal communication, this is fine
+                value: "http://backend-service:61001"
+              - name: BACKEND_PATH
+                value: "lake/{}/temperature"
+              - name: WOOG_UUID
+                value: "69c8438b-5aef-442f-a70d-e0d783ea2b38"
             command:
             - python
             - main.py
