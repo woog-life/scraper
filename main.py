@@ -139,6 +139,8 @@ def main() -> bool:
         logger.error(f"Failed to put temperature ({temperature}) to backend: {generated_backend_url}")
         return False
 
+    return True
+
 
 if not main():
     create_logger("main.py").error("Something went wrong")
