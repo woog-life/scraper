@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Tuple, Optional
 
 import requests
@@ -17,7 +18,7 @@ BACKEND_PATH = os.getenv("BACKEND_PATH") or "lake/{}/temperature"
 WOOG_UUID = os.getenv("WOOG_UUID") or "69c8438b-5aef-442f-a70d-e0d783ea2b38"
 
 
-def create_logger(name: str, level: int = logging.WARN) -> logging.Logger:
+def create_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
     logger = logging.Logger(name)
     ch = logging.StreamHandler(sys.stdout)
 
@@ -86,7 +87,7 @@ def get_temperature_from_xml(soup: BeautifulSoup) -> Optional[float]:
     return temperature
 
 
-def send_data_to_backend(temperature: float, timestamp: int) -> Tuple[Optional[requests.Response], str]:
+def send_data_to_backend(temperature: float, timestamp: str) -> Tuple[Optional[requests.Response], str]:
     logger = create_logger("send_temperature_to_api")
     path = BACKEND_PATH.format(WOOG_UUID)
     url = "/".join([BACKEND_URL, path])
@@ -94,7 +95,7 @@ def send_data_to_backend(temperature: float, timestamp: int) -> Tuple[Optional[r
     logger.debug(f"Send {temperature} to {url}")
 
     try:
-        response = requests.put(url, json={"temperature": temperature, "timestamp": timestamp})
+        response = requests.put(url, json={"temperature": temperature, "time": timestamp})
         logger.debug(f"success: {response.ok} | content: {response.content}")
     except (requests.exceptions.ConnectionError, socket.gaierror, urllib3.exceptions.MaxRetryError):
         logger.exception(f"Error while connecting to backend ({url})", exc_info=True)
@@ -126,6 +127,7 @@ def main() -> bool:
 
     try:
         timestamp = get_timestamp_from_xml(soup)
+        timestamp = datetime.fromtimestamp(timestamp).isoformat()
     except ValueError:
         logger.error("ts_tag was not of type int")
         return False
