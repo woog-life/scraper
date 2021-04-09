@@ -1,21 +1,23 @@
+import inspect
 import logging
-from datetime import datetime
-from typing import Tuple, Optional
-
-import requests
 import os
 import socket
 import sys
+from datetime import datetime
+from typing import Tuple, Optional, Callable, Union, NewType
 
+import requests
 import urllib3
 from bs4 import BeautifulSoup, Tag
 
 WOOG_TEMPERATURE_URL = os.getenv("WOOG_TEMPERATURE_URL") or "https://woog.iot.service.itrm.de/?accesstoken=LQ8MXn"
 # noinspection HttpUrlsUsage
 # cluster internal communication
-BACKEND_URL = os.getenv("BACKEND_URL") or "http://api.woog.life"
+BACKEND_URL = os.getenv("BACKEND_URL") or "https://api.woog.life"
 BACKEND_PATH = os.getenv("BACKEND_PATH") or "lake/{}/temperature"
 WOOG_UUID = os.getenv("WOOG_UUID") or "69c8438b-5aef-442f-a70d-e0d783ea2b38"
+
+WATER_INFORMATION = NewType("WaterInformation", Tuple[str, float])
 
 
 def create_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
@@ -33,7 +35,7 @@ def create_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
 
 
 def get_website() -> Tuple[str, bool]:
-    logger = create_logger("get_webiste")
+    logger = create_logger(inspect.currentframe().f_code.co_name)
     url = WOOG_TEMPERATURE_URL
 
     logger.debug(f"Requesting {url}")
@@ -49,50 +51,53 @@ def parse_website_xml(xml: str) -> BeautifulSoup:
     return BeautifulSoup(xml, "xml")
 
 
-def get_tag_from_soup(soup: BeautifulSoup, name: str) -> Optional[Tag]:
-    return soup.find(name)
-
-
-def get_timestamp_from_xml(soup: Tag) -> Optional[int]:
-    tag = soup.find("ts")
+def get_tag_text_from_xml(xml: Union[BeautifulSoup, Tag], name: str, conversion: Callable) -> Optional:
+    tag = xml.find(name)
 
     if not tag:
         return None
 
-    timestamp = tag.text
-    return int(timestamp)
+    return conversion(tag.text)
 
 
-def get_temperature_from_xml(soup: BeautifulSoup) -> Optional[float]:
-    """
-    Throws ValueError if value is not of type float
-    :param soup: soup from the woog api website
-    :return: temperature or `None` if not parsable/value is missing
-    """
-    logger = create_logger("get_temperature_from_html")
+def get_water_information(soup: BeautifulSoup) -> Optional[WATER_INFORMATION]:
+    logger = create_logger(inspect.currentframe().f_code.co_name)
 
-    value_tag = soup.find("value")
-    logger.debug(f"value_tag: {value_tag}")
-    if not value_tag:
-        logger.error(f"value_tag not present in {soup}")
-        return None
+    water_temperature_tag = soup.find("Water_Temperature")
+    logger.debug(f"water_temperature_tag: {water_temperature_tag}")
+    if not water_temperature_tag:
+        logger.error(f"Water_Temperature not present in {soup}")
+        return
 
-    logger.debug(f"text: {value_tag.text}")
     try:
-        temperature = float(value_tag.text)
-    except ValueError as e:
-        logger.error(f"{value_tag.text} is not a float")
-        raise e
+        temperature = get_tag_text_from_xml(water_temperature_tag, "value", float)
+    except ValueError:
+        logger.error("value_tag was not of type float")
+        return
 
-    return temperature
+    if not temperature:
+        logger.error(f"temperature was None in water_temperature value tag ({water_temperature_tag})")
+        return
+
+    try:
+        iso_time: int = get_tag_text_from_xml(water_temperature_tag, "ts",
+                                              lambda x: datetime.fromtimestamp(int(x) / 1000).isoformat())
+    except ValueError:
+        logger.exception("ts_tag is not valid", exc_info=True)
+        return
+
+    # noinspection PyTypeChecker
+    # at this point pycharm doesn't think that the return type can be optional despite the many empty returns beforehand
+    return iso_time, temperature
 
 
-def send_data_to_backend(temperature: float, timestamp: str) -> Tuple[Optional[requests.Response], str]:
-    logger = create_logger("send_temperature_to_api")
+def send_data_to_backend(water_information: WATER_INFORMATION) -> Tuple[Optional[requests.Response], str]:
+    logger = create_logger(inspect.currentframe().f_code.co_name)
     path = BACKEND_PATH.format(WOOG_UUID)
     url = "/".join([BACKEND_URL, path])
 
-    data = {"temperature": temperature, "time": timestamp}
+    water_timestamp, water_temperature = water_information
+    data = {"temperature": water_temperature, "time": water_timestamp}
     logger.debug(f"Send {data} to {url}")
 
     try:
@@ -106,7 +111,7 @@ def send_data_to_backend(temperature: float, timestamp: str) -> Tuple[Optional[r
 
 
 def main() -> bool:
-    logger = create_logger("main")
+    logger = create_logger(inspect.currentframe().f_code.co_name)
     content, success = get_website()
     if not success:
         logger.error(f"Couldn't retrieve website: {content}")
@@ -114,34 +119,20 @@ def main() -> bool:
 
     soup = parse_website_xml(content)
 
-    water_temperature_tag = get_tag_from_soup(soup, "Water_Temperature")
-    logger.debug(f"water_temperature_tag: {water_temperature_tag}")
-    if not water_temperature_tag:
-        logger.error(f"Water_Temperature not present in {soup}")
+    water_information = get_water_information(soup)
+    if not water_information:
+        logger.error(f"Couldn't retrieve water information from {soup}")
         return False
 
-    try:
-        temperature = get_temperature_from_xml(soup)
-    except ValueError:
-        logger.error("value_tag was not of type float")
-        return False
-
-    try:
-        timestamp = get_timestamp_from_xml(water_temperature_tag)
-        timestamp = datetime.fromtimestamp(timestamp / 1000).isoformat()
-    except ValueError:
-        logger.exception("ts_tag was not of type int", exc_info=True)
-        return False
-
-    response, generated_backend_url = send_data_to_backend(temperature, timestamp)
+    response, generated_backend_url = send_data_to_backend(water_information)
 
     if not response or not response.ok:
-        logger.error(f"Failed to put temperature ({temperature}) to backend: {generated_backend_url}")
+        logger.error(f"Failed to put data ({water_information}) to backend: {generated_backend_url}")
         return False
 
     return True
 
 
 if not main():
-    create_logger("main.py").error("Something went wrong")
+    create_logger(inspect.currentframe().f_code.co_name)
     sys.exit(1)
