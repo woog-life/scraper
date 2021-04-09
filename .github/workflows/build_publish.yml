@@ -35,14 +35,3 @@ jobs:
         with:
           kubeconfig: ${{ secrets.KUBECONFIG }}
           args: apply -f .kubernetes/manifest.yaml
-  delete_old_versions:
-    name: "Delete old versions"
-    runs-on: ubuntu-latest
-    needs: build_push_docker
-    steps:
-      - uses: smartsquaregmbh/delete-old-packages@v0.3.1
-        with:
-          keep: 2
-          organization: woog-life
-          names: |
-            scraper
