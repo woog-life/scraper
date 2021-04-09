@@ -53,8 +53,8 @@ def get_tag_from_soup(soup: BeautifulSoup, name: str) -> Optional[Tag]:
     return soup.find(name)
 
 
-def get_timestamp_from_xml(soup: BeautifulSoup) -> Optional[int]:
-    tag = get_tag_from_soup(soup, "ts")
+def get_timestamp_from_xml(soup: Tag) -> Optional[int]:
+    tag = soup.find("ts")
 
     if not tag:
         return None
@@ -92,10 +92,11 @@ def send_data_to_backend(temperature: float, timestamp: str) -> Tuple[Optional[r
     path = BACKEND_PATH.format(WOOG_UUID)
     url = "/".join([BACKEND_URL, path])
 
-    logger.debug(f"Send {temperature} to {url}")
+    data = {"temperature": temperature, "time": timestamp}
+    logger.debug(f"Send {data} to {url}")
 
     try:
-        response = requests.put(url, json={"temperature": temperature, "time": timestamp})
+        response = requests.put(url, json=data)
         logger.debug(f"success: {response.ok} | content: {response.content}")
     except (requests.exceptions.ConnectionError, socket.gaierror, urllib3.exceptions.MaxRetryError):
         logger.exception(f"Error while connecting to backend ({url})", exc_info=True)
@@ -126,10 +127,10 @@ def main() -> bool:
         return False
 
     try:
-        timestamp = get_timestamp_from_xml(soup)
-        timestamp = datetime.fromtimestamp(timestamp).isoformat()
+        timestamp = get_timestamp_from_xml(water_temperature_tag)
+        timestamp = datetime.fromtimestamp(timestamp / 1000).isoformat()
     except ValueError:
-        logger.error("ts_tag was not of type int")
+        logger.exception("ts_tag was not of type int", exc_info=True)
         return False
 
     response, generated_backend_url = send_data_to_backend(temperature, timestamp)
