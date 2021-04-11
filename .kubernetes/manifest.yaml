@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scraper-config
+  namespace: wooglife
+data:
+  BACKEND_URL: "http://backend-service:61001"
+  BACKEND_PATH: "lake/{}/temperature"
+---
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
@@ -14,14 +23,13 @@ spec:
           containers:
           - name: scraper
             image: ghcr.io/woog-life/scraper:{{TAG}}
-            env:
-              - name: BACKEND_URL
-                # cluster internal communication, this is fine
-                value: "http://backend-service:61001"
-              - name: BACKEND_PATH
-                value: "lake/{}/temperature"
-              - name: WOOG_UUID
-                value: "69c8438b-5aef-442f-a70d-e0d783ea2b38"
+            envFrom:
+            - secretRef:
+              name: apikey
+            - configMapRef:
+              name: lake-uuids
+            - configMapRef:
+              name: scraper-config
             command:
             - python
             - main.py

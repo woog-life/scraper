@@ -15,7 +15,8 @@ WOOG_TEMPERATURE_URL = os.getenv("WOOG_TEMPERATURE_URL") or "https://woog.iot.se
 # cluster internal communication
 BACKEND_URL = os.getenv("BACKEND_URL") or "https://api.woog.life"
 BACKEND_PATH = os.getenv("BACKEND_PATH") or "lake/{}/temperature"
-WOOG_UUID = os.getenv("WOOG_UUID") or "69c8438b-5aef-442f-a70d-e0d783ea2b38"
+WOOG_UUID = os.getenv("LARGE_WOOG_UUID")
+API_KEY = os.getenv("API_KEY")
 
 WATER_INFORMATION = NewType("WaterInformation", Tuple[str, float])
 
@@ -97,11 +98,12 @@ def send_data_to_backend(water_information: WATER_INFORMATION) -> Tuple[Optional
     url = "/".join([BACKEND_URL, path])
 
     water_timestamp, water_temperature = water_information
+    headers = {"X-ApiKey": API_KEY}
     data = {"temperature": water_temperature, "time": water_timestamp}
-    logger.debug(f"Send {data} to {url}")
+    logger.debug(f"Send {data} to {url} with headers {headers}")
 
     try:
-        response = requests.put(url, json=data)
+        response = requests.put(url, json=data, headers=headers)
         logger.debug(f"success: {response.ok} | content: {response.content}")
     except (requests.exceptions.ConnectionError, socket.gaierror, urllib3.exceptions.MaxRetryError):
         logger.exception(f"Error while connecting to backend ({url})", exc_info=True)
@@ -133,6 +135,13 @@ def main() -> bool:
     return True
 
 
-if not main():
-    create_logger(inspect.currentframe().f_code.co_name)
-    sys.exit(1)
+root_logger = create_logger("__main__")
+
+if not WOOG_UUID:
+    root_logger.error("LARGE_WOOG_UUID not defined in environment")
+if not API_KEY:
+    root_logger.error("API_KEY not defined in environment")
+else:
+    if not main():
+        root_logger.error("Something went wrong")
+        sys.exit(1)
