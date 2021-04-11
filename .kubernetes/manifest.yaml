@@ -16,11 +16,11 @@ spec:
             image: ghcr.io/woog-life/scraper:{{TAG}}
             envFrom:
             - secretRef:
-              name: apikey
+                name: apikey
             - configMapRef:
-              name: lake-uuids
+                name: lake-uuids
             - configMapRef:
-              name: scraper-config
+                name: scraper-config
             command:
             - python
             - main.py
