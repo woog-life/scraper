@@ -112,7 +112,7 @@ def send_data_to_backend(water_information: WATER_INFORMATION) -> Tuple[Optional
     url = "/".join([BACKEND_URL, path])
 
     water_timestamp, water_temperature = water_information
-    headers = {"X-ApiKey": API_KEY}
+    headers = {"Authorization": f"Bearer {API_KEY}"}
     data = {"temperature": water_temperature, "time": water_timestamp}
     logger.debug(f"Send {data} to {url} with headers {headers}")
 
