@@ -139,7 +139,7 @@ root_logger = create_logger("__main__")
 
 if not WOOG_UUID:
     root_logger.error("LARGE_WOOG_UUID not defined in environment")
-if not API_KEY:
+elif not API_KEY:
     root_logger.error("API_KEY not defined in environment")
 else:
     if not main():
