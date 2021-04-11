@@ -1,12 +1,3 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: scraper-config
-  namespace: wooglife
-data:
-  BACKEND_URL: "http://backend-service:61001"
-  BACKEND_PATH: "lake/{}/temperature"
----
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
