@@ -17,6 +17,8 @@ spec:
             envFrom:
             - secretRef:
                 name: apikey
+            - secretRef:
+                name: telegram-token
             - configMapRef:
                 name: lake-uuids
             - configMapRef:

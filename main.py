@@ -4,11 +4,12 @@ import os
 import socket
 import sys
 from datetime import datetime
-from typing import Tuple, Optional, Callable, Union, NewType
+from typing import Tuple, Optional, Callable, Union, NewType, List
 
 import requests
 import urllib3
 from bs4 import BeautifulSoup, Tag
+from telegram import Bot
 
 WOOG_TEMPERATURE_URL = os.getenv("WOOG_TEMPERATURE_URL") or "https://woog.iot.service.itrm.de/?accesstoken=LQ8MXn"
 # noinspection HttpUrlsUsage
@@ -33,6 +34,19 @@ def create_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
     logger.setLevel(level)
 
     return logger
+
+
+def send_telegram_alert(message: str, token: str, chatlist: List[str]):
+    logger = create_logger(inspect.currentframe().f_code.co_name)
+    if not token:
+        logger.error("TOKEN not defined in environment, skip sending telegram message")
+        return
+
+    if not chatlist:
+        logger.error("chatlist is empty (env var: TELEGRAM_CHATLIST)")
+
+    for user in chatlist:
+        Bot(token=token).send_message(chat_id=user, text=f"Error while executing: {message}")
 
 
 def get_website() -> Tuple[str, bool]:
@@ -112,27 +126,30 @@ def send_data_to_backend(water_information: WATER_INFORMATION) -> Tuple[Optional
     return response, url
 
 
-def main() -> bool:
+def main() -> Tuple[bool, str]:
     logger = create_logger(inspect.currentframe().f_code.co_name)
     content, success = get_website()
     if not success:
-        logger.error(f"Couldn't retrieve website: {content}")
-        return False
+        message = f"Couldn't retrieve website: {content}"
+        logger.error(message)
+        return False, message
 
     soup = parse_website_xml(content)
 
     water_information = get_water_information(soup)
     if not water_information:
-        logger.error(f"Couldn't retrieve water information from {soup}")
-        return False
+        message = f"Couldn't retrieve water information from {soup}"
+        logger.error(message)
+        return False, message
 
     response, generated_backend_url = send_data_to_backend(water_information)
 
     if not response or not response.ok:
-        logger.error(f"Failed to put data ({water_information}) to backend: {generated_backend_url}")
-        return False
+        message = f"Failed to put data ({water_information}) to backend: {generated_backend_url}"
+        logger.error(message)
+        return False, message
 
-    return True
+    return True, ""
 
 
 root_logger = create_logger("__main__")
@@ -142,6 +159,10 @@ if not WOOG_UUID:
 elif not API_KEY:
     root_logger.error("API_KEY not defined in environment")
 else:
-    if not main():
-        root_logger.error("Something went wrong")
+    success, message = main()
+    if not success:
+        root_logger.error(f"Something went wrong ({message})")
+        token = os.getenv("TOKEN")
+        chatlist = os.getenv("TELEGRAM_CHATLIST") or ""
+        send_telegram_alert(message, token=token, chatlist=chatlist.split(","))
         sys.exit(1)
