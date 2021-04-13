@@ -114,7 +114,7 @@ def send_data_to_backend(water_information: WATER_INFORMATION) -> Tuple[Optional
     water_timestamp, water_temperature = water_information
     headers = {"Authorization": f"Bearer {API_KEY}"}
     data = {"temperature": water_temperature, "time": water_timestamp}
-    logger.debug(f"Send {data} to {url} with headers {headers}")
+    logger.debug(f"Send {data} to {url}")
 
     try:
         response = requests.put(url, json=data, headers=headers)
