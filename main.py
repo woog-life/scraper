@@ -90,7 +90,7 @@ def get_water_information(soup: BeautifulSoup) -> Optional[WATER_INFORMATION]:
         logger.error("value_tag was not of type float")
         return
 
-    if not temperature:
+    if temperature is None:
         logger.error(f"temperature was None in water_temperature value tag ({water_temperature_tag})")
         return
 
