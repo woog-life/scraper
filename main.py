@@ -122,7 +122,7 @@ def get_water_information(soup: BeautifulSoup) -> Optional[WATER_INFORMATION]:
         logger.error("value_tag was not of type float")
         return
 
-    if not temperature:
+    if temperature is None:
         logger.error(f"temperature was None in water_temperature value tag ({water_temperature_tag})")
         return
 
@@ -145,10 +145,12 @@ def send_data_to_backend(water_information: WATER_INFORMATION, air_information: 
 
     water_timestamp, water_temperature = water_information
     air_timestamp, air_temperature = air_information
+    if water_temperature <= 0:
+        return None, "water_temperature is <= 0, please approve this manually."
 
-    headers = {"X-ApiKey": API_KEY}
+    headers = {"Authorization": f"Bearer {API_KEY}"}
     data = {"temperature": water_temperature, "time": water_timestamp}
-    logger.debug(f"Send {data} to {url} with headers {headers}")
+    logger.debug(f"Send {data} to {url}")
 
     try:
         response = requests.put(url, json=data, headers=headers)
