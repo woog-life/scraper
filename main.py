@@ -91,7 +91,7 @@ def get_air_information(soup: BeautifulSoup) -> Optional[AIR_INFORMATION]:
         logger.error("value_tag was not of type float")
         return
 
-    if not temperature:
+    if temperature is None:
         logger.error(f"temperature was None in air_temperature value tag ({air_temperature_tag})")
         return
 
