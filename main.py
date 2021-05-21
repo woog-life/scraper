@@ -6,6 +6,7 @@ import sys
 from datetime import datetime
 from typing import Tuple, Optional, Callable, Union, NewType, List
 
+import pytz
 import requests
 import urllib3
 from bs4 import BeautifulSoup, Tag
@@ -127,8 +128,11 @@ def get_water_information(soup: BeautifulSoup) -> Optional[WATER_INFORMATION]:
         return
 
     try:
-        iso_time: int = get_tag_text_from_xml(water_temperature_tag, "ts",
-                                              lambda x: datetime.fromtimestamp(int(x) / 1000).isoformat())
+        time: datetime = get_tag_text_from_xml(water_temperature_tag, "ts",
+                                               lambda x: datetime.fromtimestamp(int(x) / 1000))
+        local = pytz.timezone("Europe/Berlin")
+        time = local.localize(time)
+        iso_time = time.astimezone(pytz.utc).isoformat()
     except ValueError:
         logger.exception("ts_tag is not valid", exc_info=True)
         return
@@ -138,7 +142,8 @@ def get_water_information(soup: BeautifulSoup) -> Optional[WATER_INFORMATION]:
     return iso_time, temperature
 
 
-def send_data_to_backend(water_information: WATER_INFORMATION, air_information: AIR_INFORMATION) -> Tuple[Optional[requests.Response], str]:
+def send_data_to_backend(water_information: WATER_INFORMATION, air_information: AIR_INFORMATION) -> Tuple[
+    Optional[requests.Response], str]:
     logger = create_logger(inspect.currentframe().f_code.co_name)
     path = BACKEND_PATH.format(WOOG_UUID)
     url = "/".join([BACKEND_URL, path])
