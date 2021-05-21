@@ -188,7 +188,7 @@ def main() -> Tuple[bool, str]:
     response, generated_backend_url = send_data_to_backend(water_information, air_information)
 
     if not response or not response.ok:
-        message = f"Failed to put data ({water_information}) to backend: {generated_backend_url}"
+        message = f"Failed to put data ({water_information}) to backend: {generated_backend_url}\n{response.content}"
         logger.error(message)
         return False, message
 
