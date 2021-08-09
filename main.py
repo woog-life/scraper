@@ -48,7 +48,7 @@ def send_telegram_alert(message: str, token: str, chatlist: List[str]):
         logger.error("chatlist is empty (env var: TELEGRAM_CHATLIST)")
 
     for user in chatlist:
-        pass # Bot(token=token).send_message(chat_id=user, text=f"(scraper) Error while executing: {message}")
+        Bot(token=token).send_message(chat_id=user, text=f"(scraper) Error while executing: {message}")
 
 
 def get_website() -> Tuple[str, bool]:
